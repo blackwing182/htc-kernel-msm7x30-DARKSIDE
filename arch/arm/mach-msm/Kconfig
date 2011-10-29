@@ -1760,8 +1760,8 @@ config ACPUCLOCK_OVERCLOCKING
 	depends on CPU_FREQ && !PERFLOCK
 	depends on ARCH_MSM7X30
 
-config JESUS_PHONE
-        bool "Enable support for unstable CPU frequencies"
+config DARKSIDE
+        bool "Enable support for DARK unstable CPU frequencies"
         default n
         depends on ACPUCLOCK_OVERCLOCKING
 
