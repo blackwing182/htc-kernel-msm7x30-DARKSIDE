@@ -139,19 +139,19 @@ static int suspend_enter(suspend_state_t state)
 	if (suspend_ops->prepare) {
 		error = suspend_ops->prepare();
 		if (error)
-			return error;
+			goto Platform_finish;
 	}
 
 	error = dpm_suspend_noirq(PMSG_SUSPEND);
 	if (error) {
 		printk(KERN_ERR "PM: Some devices failed to power down\n");
-		goto Platfrom_finish;
+		goto Platform_finish;
 	}
 
 	if (suspend_ops->prepare_late) {
 		error = suspend_ops->prepare_late();
 		if (error)
-			goto Power_up_devices;
+			goto Platform_wake;
 	}
 
 	if (suspend_test(TEST_PLATFORM))
@@ -166,8 +166,10 @@ static int suspend_enter(suspend_state_t state)
 
 	error = sysdev_suspend(PMSG_SUSPEND);
 	if (!error) {
-		if (!suspend_test(TEST_CORE))
+		if (!suspend_test(TEST_CORE) && pm_check_wakeup_events()) {
 			error = suspend_ops->enter(state);
+			events_check_enabled = false;
+		}
 		sysdev_resume();
 	}
 
@@ -181,10 +183,9 @@ static int suspend_enter(suspend_state_t state)
 	if (suspend_ops->wake)
 		suspend_ops->wake();
 
- Power_up_devices:
 	dpm_resume_noirq(PMSG_RESUME);
 
- Platfrom_finish:
+ Platform_finish:
 	if (suspend_ops->finish)
 		suspend_ops->finish();
 
@@ -208,9 +209,7 @@ int suspend_devices_and_enter(suspend_state_t state)
 		if (error)
 			goto Close;
 	}
-	if (!suspend_console_deferred)
-		suspend_console();
-	pm_restrict_gfp_mask();
+	suspend_console();
 	suspend_test_start();
 	error = dpm_suspend_start(PMSG_SUSPEND);
 	if (error) {
@@ -227,9 +226,7 @@ int suspend_devices_and_enter(suspend_state_t state)
 	suspend_test_start();
 	dpm_resume_end(PMSG_RESUME);
 	suspend_test_finish("resume devices");
-	pm_restore_gfp_mask();
-	if (!suspend_console_deferred)
-		resume_console();
+	resume_console();
  Close:
 	if (suspend_ops->end)
 		suspend_ops->end();
@@ -288,7 +285,9 @@ int enter_state(suspend_state_t state)
 		goto Finish;
 
 	pr_debug("PM: Entering %s sleep\n", pm_states[state]);
+	pm_restrict_gfp_mask();
 	error = suspend_devices_and_enter(state);
+	pm_restore_gfp_mask();
 
  Finish:
 	pr_debug("PM: Finishing wakeup.\n");

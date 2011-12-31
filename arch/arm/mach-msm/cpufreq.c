@@ -39,6 +39,7 @@ struct cpufreq_work_struct {
 };
 
 static DEFINE_PER_CPU(struct cpufreq_work_struct, cpufreq_work);
+static struct workqueue_struct *msm_cpufreq_wq;
 #endif
 
 struct cpufreq_suspend_t {
@@ -190,7 +191,9 @@ static int __cpuinit msm_cpufreq_init(struct cpufreq_policy *policy)
 #else
 	cur_freq = acpuclk_get_rate(policy->cpu);
 	if (cpufreq_frequency_table_target(policy, table, cur_freq,
-				CPUFREQ_RELATION_H, &index)) {
+				CPUFREQ_RELATION_H, &index) &&
+	    cpufreq_frequency_table_target(policy, table, cur_freq,
+	    CPUFREQ_RELATION_L, &index)) {
 		pr_info("cpufreq: cpu%d at invalid freq: %d\n",
 				policy->cpu, cur_freq);
 		return -EINVAL;
@@ -287,6 +290,10 @@ static int __init msm_cpufreq_register(void)
 		mutex_init(&(per_cpu(cpufreq_suspend, cpu).suspend_mutex));
 		per_cpu(cpufreq_suspend, cpu).device_suspended = 0;
 	}
+
+#ifdef CONFIG_SMP
+	msm_cpufreq_wq = create_workqueue("msm-cpufreq");
+#endif
 
 	register_pm_notifier(&msm_cpufreq_pm_notifier);
 	return cpufreq_register_driver(&msm_cpufreq_driver);

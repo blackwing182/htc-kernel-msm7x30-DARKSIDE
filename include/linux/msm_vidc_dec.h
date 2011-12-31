@@ -224,6 +224,7 @@ enum vdec_picture {
 	PICTURE_TYPE_B,
 	PICTURE_TYPE_BI,
 	PICTURE_TYPE_SKIP,
+	PICTURE_TYPE_IDR,
 	PICTURE_TYPE_UNKNOWN
 };
 
@@ -532,6 +533,7 @@ struct vdec_output_frameinfo {
 	void *client_data;
 	void *input_frame_clientdata;
 	struct vdec_framesize framesize;
+	enum vdec_interlaced_format interlaced_format;
 };
 
 union vdec_msgdata {
